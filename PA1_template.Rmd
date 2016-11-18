@@ -7,16 +7,149 @@ output:
 
 
 ## Loading and preprocessing the data
+I have forked Roger's [GitHub repository](https://github.com/dnrichardson/RepData_PeerAssessment1) and therefore have the data for this assignment read to go. It's currently in a zip file, which we will now decompress.
 
+```{r unzip}
+## Check current working directory
+getwd()
+## List the files
+list.files()
+## Unzip the activity.zip file
+unzip("activity.zip")
+```
+
+Now, let's read in the data. But first, let's check what the first 2 lines look like. 
+
+```{r read lines}
+## Read the first couple of lines
+readLines(con = file("activity.csv", "r"), n = 2)
+```
+
+```{r read csv}
+## File looks good and has a header. Read it in and specify the column classes
+activity <- read.csv("activity.csv", header = TRUE, stringsAsFactors = FALSE, 
+                     colClasses = c("integer", "Date", "integer"))
+## Check the first lines
+head(activity)
+
+## Check the last lines
+tail(activity)
+```
+
+Looks like there are a lot of NAs in the steps variable. Let's quickly check if we actually have step data
+
+```{r}
+sum(activity$steps, na.rm = TRUE)
+```
+
+Okay, looks good. Let's proceed. At this point I am going to load up dplyr and convert the activty 
+dataframe to a tibble. 
+
+```{r}
+require(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+
+activity <- tbl_df(activity)
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r mean steps per day}
+## Try with tapply
 
+tapply(activity$steps, activity$date, mean, na.rm = TRUE)
+
+```
+
+Ok. Mean steps per day are very low. This could mean we have a couch potato, or that the means are 
+not a great reflection of daily activity. Let's do the median steps per day.
+
+```{r median steps per day}
+
+tapply(activity$steps, activity$date, median, na.rm = TRUE)
+
+```
+
+Wow. The median steps per day are ZERO! That doesn't seem very helpful. 
+
+The means and medians output like this are a bit difficult to apprehend. Now, let's create a histogram of the total 
+number of steps taken each day. We will use ggplot2. 
+
+```{r hist of total steps per day}
+## load ggplot2
+require(ggplot2, quietly = TRUE)
+require(scales, quietly = TRUE)
+
+## Calculate total steps per day and convert to data frame
+totSteps <- as.data.frame.table(tapply(activity$steps, activity$date, sum, na.rm = TRUE))
+
+## Reconvert the date column to the class Date; note that the date variable was renamed to "Var1"
+## by the as.data.frame.table function above
+totSteps$Var1 <- as.Date(totSteps$Var1)
+
+## Plot the histogram
+ggplot(data = totSteps, aes(x = Var1)) + geom_histogram(aes(weights = Freq), binwidth = 1,
+                                                        alpha = 0.5) + theme_bw() +
+        labs(title = "Histogram of total steps per day") +
+        labs(x = "Day", y = "Total number of Steps")
+
+```
+
+Alright, that looks fairly okay. I can live with this histogram and it took me suprisingly long to 
+figure out how to plot it!
 
 
 ## What is the average daily activity pattern?
+Make a time series plot (i.e. 𝚝𝚢𝚙𝚎 = "𝚕") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+This will require me to calulate the average number of steps taken across all days for each interval. 
+
+```{r means by intervals for all days}
+## Use tapply again
+meanStepsbyIntervals <- as.data.frame.table(tapply(activity$steps, activity$interval, mean, na.rm = TRUE)) %>%
+        dplyr::rename(interval = Var1, mean = Freq)
+
+## Check first lines
+head(meanStepsbyIntervals)
+```
+
+Double check that I indeed calculated the mean for each interval. Check intervals 0 and 5 with dplyr:
+
+```{r}
+mean(filter(activity, interval == 0)$steps, na.rm = TRUE)
+mean(filter(activity, interval == 5)$steps, na.rm = TRUE)
+```
+
+Yep, this all checks out. Let's move onto the time series plot, again using ggplot2.
+
+```{r}
+
+## Interval on the x axis and average steps taken on the y
+
+ggplot(data = meanStepsbyIntervals, aes(x = interval, y = mean, group = 1)) + geom_line(na.rm = TRUE) +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1), text = element_text(size = 10))
+
+```
+
+Hmm.. ggplot2 is not producing what I want. The x-axis labels are **not cool**. I am going to try with plotly.
+
+```{r fig.width = 8}
+require(plotly, quietly = TRUE, warn.conflicts = FALSE)
+
+xaxis <- list(title = "Interval",
+              tickangle = 45
+              )
+
+plot_ly(meanStepsbyIntervals, x = ~interval, y = ~mean, type = "scatter", mode = "lines") %>%
+        layout(title = "Mean steps per day across all days according to Interval", xaxis = xaxis)
+```
 
 
+Ahh, that is SOOO much better (and interactive, too)!
+
+Now, onto the question of: 
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+From the graph above, the answer to this question is **interval 835, which has roughly 206 average steps**. 
 
 ## Imputing missing values
 
