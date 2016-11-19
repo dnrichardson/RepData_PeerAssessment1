@@ -14,8 +14,10 @@ I have forked Roger's [GitHub repository](https://github.com/dnrichardson/RepDat
 getwd()
 ## List the files
 list.files()
-## Unzip the activity.zip file
-unzip("activity.zip")
+## Unzip the activity.zip file if necessary
+if (!file.exists("activity.csv")){
+        unzip("activity.zip")
+}
 ```
 
 Now, let's read in the data. But first, let's check what the first 2 lines look like. 
@@ -53,6 +55,8 @@ activity <- tbl_df(activity)
 
 
 ## What is mean total number of steps taken per day?
+
+#### Calculate the mean number of steps per day using tapply.
 ```{r mean steps per day}
 ## Try with tapply
 
@@ -63,6 +67,8 @@ tapply(activity$steps, activity$date, mean, na.rm = TRUE)
 Ok. Mean steps per day are very low. This could mean we have a couch potato, or that the means are 
 not a great reflection of daily activity. Let's do the median steps per day.
 
+#### Calculate the median of total number of steps taken per day.
+
 ```{r median steps per day}
 
 tapply(activity$steps, activity$date, median, na.rm = TRUE)
@@ -71,8 +77,7 @@ tapply(activity$steps, activity$date, median, na.rm = TRUE)
 
 Wow. The median steps per day are ZERO! That doesn't seem very helpful. 
 
-The means and medians output like this are a bit difficult to apprehend. Now, let's create a histogram of the total 
-number of steps taken each day. We will use ggplot2. 
+The means and medians output like this are a bit difficult to apprehend. Now, let's create a histogram of the total number of steps taken each day. We will use ggplot2. 
 
 ```{r hist of total steps per day}
 ## load ggplot2
@@ -97,7 +102,6 @@ ggplot(data = totSteps, aes(x = Var1)) + geom_histogram(aes(weights = Freq), bin
 Alright, that looks fairly okay. I can live with this histogram and it took me suprisingly long to 
 figure out how to plot it!
 
-
 ## What is the average daily activity pattern?
 Make a time series plot (i.e. 𝚝𝚢𝚙𝚎 = "𝚕") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 
@@ -106,7 +110,7 @@ This will require me to calulate the average number of steps taken across all da
 ```{r means by intervals for all days}
 ## Use tapply again
 meanStepsbyIntervals <- as.data.frame.table(tapply(activity$steps, activity$interval, mean, na.rm = TRUE)) %>%
-        dplyr::rename(interval = Var1, mean = Freq)
+        dplyr::rename(myinterval = Var1, mean = Freq)
 
 ## Check first lines
 head(meanStepsbyIntervals)
@@ -121,17 +125,20 @@ mean(filter(activity, interval == 5)$steps, na.rm = TRUE)
 
 Yep, this all checks out. Let's move onto the time series plot, again using ggplot2.
 
+#### Time series plot with ggplot2
 ```{r}
 
 ## Interval on the x axis and average steps taken on the y
 
-ggplot(data = meanStepsbyIntervals, aes(x = interval, y = mean, group = 1)) + geom_line(na.rm = TRUE) +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1), text = element_text(size = 10))
+ggplot(data = meanStepsbyIntervals, aes(x = as.numeric(as.character(myinterval)), y = mean, group = 1)) + geom_line(na.rm = TRUE) + labs(title = "Mean number of steps per day by interval", x = "interval",
+                                                                                                                                         y = "mean steps per day")
 
 ```
 
-Hmm.. ggplot2 is not producing what I want. The x-axis labels are **not cool**. I am going to try with plotly.
+Hmm.. The plot is nice, but it's hard to decipher what the maximum point is just from the plot. 
+Let's try with an interactive graph by plotly. 
 
+#### Interactive time series plot made with Plotly.
 ```{r fig.width = 8}
 require(plotly, quietly = TRUE, warn.conflicts = FALSE)
 
@@ -139,20 +146,160 @@ xaxis <- list(title = "Interval",
               tickangle = 45
               )
 
-plot_ly(meanStepsbyIntervals, x = ~interval, y = ~mean, type = "scatter", mode = "lines") %>%
+plot_ly(meanStepsbyIntervals, x = ~myinterval, y = ~mean, type = "scatter", mode = "lines") %>%
         layout(title = "Mean steps per day across all days according to Interval", xaxis = xaxis)
+
 ```
 
 
-Ahh, that is SOOO much better (and interactive, too)!
+Ahh, that is SOOO much better (and interactive, too)! Note: If you are not currently looking at the HTML
+version of this file, you will not see the above plot! You must be looking at the knitted HTML document
+to see the interactive plot above.
 
-Now, onto the question of: 
-Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+#### Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
 From the graph above, the answer to this question is **interval 835, which has roughly 206 average steps**. 
 
 ## Imputing missing values
 
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with 𝙽𝙰s)
 
+```{r}
+## Count up the total number of rows with NAs using base R
+nrow(activity[activity$steps == "NA",])
+```
+
+```{r}
+## Double check using dplyr
+nrow(filter(activity, is.na(steps)))
+```
+
+Ok, so it looks like there are **2304 rows** with missing values. 
+
+Let's now devise a simple strategy to impute the missing data. I'll use the mean of the 5 minute 
+interval across all days to fill in the missing value at the interval in question. Hmm. I may 
+need to write a function to do this. But first, I'll try the quick and dirty way.
+
+```{r cbind}
+## Simply cbind the the meanStepsbyIntervals to the activity dataframe
+activity2 <- cbind(activity, meanStepsbyIntervals)
+
+head(activity2)
+```
+
+Now, let's impute the missing values by simply checking if steps is NA and if it is, replacing that 
+NA with the mean. 
+
+```{r impute}
+## Replace the NAs with the mean values
+activity2[is.na(activity2$steps),]$steps <- activity2[is.na(activity2$steps),]$mean
+head(activity2)
+```
+
+Now, I need to do the following:
+
+Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+For this, I can reuse the code I already created in the beginning of the document.
+
+#### Calculate the mean steps per day
+
+```{r mean steps per day 2}
+## Try with tapply
+tapply(activity2$steps, activity2$date, mean, na.rm = TRUE)
+```
+
+Looks like that worked. R is amazing! Note that by virtue of how I imputed the missing data, all
+instances of missing data now have the exact same means (see 2012-10-01 and 2012-11-30 for example). Recall that I imputed the missing data by substituting in the mean of the interval across all days for the row with the NAs. It is more clear with the median values below.
+
+```{r median steps per day 2}
+
+tapply(activity2$steps, activity2$date, median, na.rm = TRUE)
+
+```
+
+Wow. The median steps per day are still ZERO! Except, it's important to note that by virtue of how
+I imputed the missing data, all instances of missing data now have the exact same medians. 
+
+#### Create histogram of total steps per day using ggplot
+
+```{r hist of total steps per day 2}
+
+## Calculate total steps per day and convert to data frame
+totSteps <- as.data.frame.table(tapply(activity2$steps, activity2$date, sum, na.rm = TRUE))
+
+## Reconvert the date column to the class Date; note that the date variable was renamed to "Var1"
+## by the as.data.frame.table function above
+totSteps$Var1 <- as.Date(totSteps$Var1)
+
+## Plot the histogram
+ggplot(data = totSteps, aes(x = Var1)) + geom_histogram(aes(weights = Freq), binwidth = 1,
+                                                        alpha = 0.5) + theme_bw() +
+        labs(title = "Histogram of total steps per day with imputed missing data") +
+        labs(x = "Day", y = "Total number of Steps")
+
+```
+
+The impact of imputing missing data on the histogram is that the histogram has become more filled out
+as the only gaps in the chart arise from days where the mean values for total steps taken is 0.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Create a temporary variable, called "day", which stores the output of the weekdays() function. Then
+create a new factor variable called, "weekday", that will have two levels, "weekday" and "weekend".
+Note, I will be using the imputed data frame as there was no specification in the assingment instructions of which to use.
+
+```{r weekdays}
+## Create day variable
+activity2$day <- weekdays(activity2$date)
+head(activity2)
+
+## Create weekday factor variable
+
+activity2 <- activity2 %>% mutate(weekday = ifelse(day == "Saturday" | day == "Sunday", "weekend", ifelse(day != "Saturday" | day != "Sunday", "weekday")))
+
+activity2$weekday <- factor(activity2$weekday, levels = c("weekday", "weekend"))
+
+head(activity2)
+```
+
+Finally, we can make our last plot. This assignment was estimated to take 2 hours, but I've spent more like
+5 hours on it.
+
+```{r facet plot of average number of steps taken averaged across all weekday days or weekends }
+
+## Create two new dataframes based on factor
+
+weekdays <- activity2[activity2$weekday == "weekday",]
+weekends <- activity2[activity2$weekday == "weekend",]
+
+## Create two new dataframes of interval means
+meanStepsbyIntervalsWeekdays <- as.data.frame.table(tapply(weekdays$steps, weekdays$interval, mean, na.rm = TRUE)) %>%
+        dplyr::rename(myinterval = Var1, mean = Freq)
+
+meanStepsbyIntervalsWeekends <- as.data.frame.table(tapply(weekends$steps, weekends$interval, mean, na.rm = TRUE)) %>%
+        dplyr::rename(myinterval = Var1, mean = Freq)
+
+## Add the weekend variable to facet by
+meanStepsbyIntervalsWeekdays$weekday <- "weekday"
+meanStepsbyIntervalsWeekends$weekday <- "weekend"
+
+## rbind them
+myIntervalData <- rbind(meanStepsbyIntervalsWeekdays, meanStepsbyIntervalsWeekends)
+
+```
+
+#### Facet plot of mean steps per day by interval 
+
+```{r fig.width = 8}
+## Interval on the x axis and average steps taken on the y
+
+ggplot(data = myIntervalData, aes(x = as.numeric(as.character(myIntervalData$myinterval)), y = mean, group = 1)) + geom_line(na.rm = TRUE) +
+        facet_grid(weekday ~.) + labs(x = "Interval", y = "Mean Steps per Day", title = "Mean Steps per Day by Interval and Weekday")
+
+```
+
+Indeed, it looks like activity levels are slightly higher in the intervals after 1000, but are lower in the intervals
+below 1000. 
+
+
