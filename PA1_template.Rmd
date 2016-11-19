@@ -59,25 +59,16 @@ activity <- tbl_df(activity)
 #### Calculate the mean number of steps per day using tapply.
 ```{r mean steps per day}
 ## Try with tapply
+totStepsByDay <- tapply(activity$steps, activity$date, sum, na.rm=TRUE)
 
-tapply(activity$steps, activity$date, mean, na.rm = TRUE)
-
-```
-
-Ok. Mean steps per day are very low. This could mean we have a couch potato, or that the means are 
-not a great reflection of daily activity. Let's do the median steps per day.
-
-#### Calculate the median of total number of steps taken per day.
-
-```{r median steps per day}
-
-tapply(activity$steps, activity$date, median, na.rm = TRUE)
+mean(totStepsByDay)
+median(totStepsByDay)
 
 ```
 
-Wow. The median steps per day are ZERO! That doesn't seem very helpful. 
+Mean total number of steps per day are 9354 and the median is 10395.
 
-The means and medians output like this are a bit difficult to apprehend. Now, let's create a histogram of the total number of steps taken each day. We will use ggplot2. 
+Now, let's create a histogram of the total number of steps taken each day. We will use ggplot2. 
 
 ```{r hist of total steps per day}
 ## load ggplot2
@@ -206,20 +197,16 @@ For this, I can reuse the code I already created in the beginning of the documen
 
 ```{r mean steps per day 2}
 ## Try with tapply
-tapply(activity2$steps, activity2$date, mean, na.rm = TRUE)
-```
 
-Looks like that worked. R is amazing! Note that by virtue of how I imputed the missing data, all
-instances of missing data now have the exact same means (see 2012-10-01 and 2012-11-30 for example). Recall that I imputed the missing data by substituting in the mean of the interval across all days for the row with the NAs. It is more clear with the median values below.
+totStepsByDay <- tapply(activity2$steps, activity2$date, sum, na.rm=TRUE)
 
-```{r median steps per day 2}
-
-tapply(activity2$steps, activity2$date, median, na.rm = TRUE)
+mean(totStepsByDay)
+median(totStepsByDay)
 
 ```
 
-Wow. The median steps per day are still ZERO! Except, it's important to note that by virtue of how
-I imputed the missing data, all instances of missing data now have the exact same medians. 
+Looks like that worked. R is amazing! Looks like the mean and median are exactly the same now after imputation. 
+
 
 #### Create histogram of total steps per day using ggplot
 
