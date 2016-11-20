@@ -68,12 +68,9 @@ median(totStepsByDay)
 
 Mean total number of steps per day are 9354 and the median is 10395.
 
-Now, let's create a histogram of the total number of steps taken each day. We will use ggplot2. 
+Now, let's create a histogram of the total number of steps taken each day. We will use base R plotting. 
 
 ```{r hist of total steps per day}
-## load ggplot2
-require(ggplot2, quietly = TRUE)
-require(scales, quietly = TRUE)
 
 ## Calculate total steps per day and convert to data frame
 totSteps <- as.data.frame.table(tapply(activity$steps, activity$date, sum, na.rm = TRUE))
@@ -83,15 +80,9 @@ totSteps <- as.data.frame.table(tapply(activity$steps, activity$date, sum, na.rm
 totSteps$Var1 <- as.Date(totSteps$Var1)
 
 ## Plot the histogram
-ggplot(data = totSteps, aes(x = Var1)) + geom_histogram(aes(weights = Freq), binwidth = 1,
-                                                        alpha = 0.5) + theme_bw() +
-        labs(title = "Histogram of total steps per day") +
-        labs(x = "Day", y = "Total number of Steps")
-
+hist(totSteps$Freq, breaks = 10, xlab = "Total number of daily steps", main = "Histogram of total daily steps")
 ```
 
-Alright, that looks fairly okay. I can live with this histogram and it took me suprisingly long to 
-figure out how to plot it!
 
 ## What is the average daily activity pattern?
 Make a time series plot (i.e. 𝚝𝚢𝚙𝚎 = "𝚕") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
@@ -118,6 +109,9 @@ Yep, this all checks out. Let's move onto the time series plot, again using ggpl
 
 #### Time series plot with ggplot2
 ```{r}
+## load ggplot2
+require(ggplot2, quietly = TRUE)
+require(scales, quietly = TRUE)
 
 ## Interval on the x axis and average steps taken on the y
 
@@ -127,7 +121,17 @@ ggplot(data = meanStepsbyIntervals, aes(x = as.numeric(as.character(myinterval))
 ```
 
 Hmm.. The plot is nice, but it's hard to decipher what the maximum point is just from the plot. 
-Let's try with an interactive graph by plotly. 
+
+```{r}
+## Get max interval
+meanStepsbyIntervals[which.max(meanStepsbyIntervals$mean),]
+```
+
+The interval with the max steps is 835 and this corresponds to roughly 206 steps. 
+
+Though we can also try getting these values with an interactive graph using plotly. Note, to see
+this interactive plot, you will need to view the knitted HTML document in your browswer. You'll
+have to download it from my github repo and open it with your browser.
 
 #### Interactive time series plot made with Plotly.
 ```{r fig.width = 8}
@@ -198,10 +202,10 @@ For this, I can reuse the code I already created in the beginning of the documen
 ```{r mean steps per day 2}
 ## Try with tapply
 
-totStepsByDay <- tapply(activity2$steps, activity2$date, sum, na.rm=TRUE)
+totStepsByDay2 <- tapply(activity2$steps, activity2$date, sum, na.rm=TRUE)
 
-mean(totStepsByDay)
-median(totStepsByDay)
+mean(totStepsByDay2)
+median(totStepsByDay2)
 
 ```
 
@@ -213,22 +217,19 @@ Looks like that worked. R is amazing! Looks like the mean and median are exactly
 ```{r hist of total steps per day 2}
 
 ## Calculate total steps per day and convert to data frame
-totSteps <- as.data.frame.table(tapply(activity2$steps, activity2$date, sum, na.rm = TRUE))
+totSteps2 <- as.data.frame.table(tapply(activity2$steps, activity2$date, sum, na.rm = TRUE))
 
 ## Reconvert the date column to the class Date; note that the date variable was renamed to "Var1"
 ## by the as.data.frame.table function above
-totSteps$Var1 <- as.Date(totSteps$Var1)
+totSteps2$Var1 <- as.Date(totSteps2$Var1)
 
 ## Plot the histogram
-ggplot(data = totSteps, aes(x = Var1)) + geom_histogram(aes(weights = Freq), binwidth = 1,
-                                                        alpha = 0.5) + theme_bw() +
-        labs(title = "Histogram of total steps per day with imputed missing data") +
-        labs(x = "Day", y = "Total number of Steps")
+hist(totSteps2$Freq, breaks = 10, xlab = "Total number of daily steps", main = "Histogram of total daily steps of
+imputed data")
 
 ```
 
-The impact of imputing missing data on the histogram is that the histogram has become more filled out
-as the only gaps in the chart arise from days where the mean values for total steps taken is 0.
+It looks like there has been very little impact on the histogram after imputing missing data.
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
@@ -256,7 +257,6 @@ Finally, we can make our last plot. This assignment was estimated to take 2 hour
 ```{r facet plot of average number of steps taken averaged across all weekday days or weekends }
 
 ## Create two new dataframes based on factor
-
 weekdays <- activity2[activity2$weekday == "weekday",]
 weekends <- activity2[activity2$weekday == "weekend",]
 
@@ -280,7 +280,6 @@ myIntervalData <- rbind(meanStepsbyIntervalsWeekdays, meanStepsbyIntervalsWeeken
 
 ```{r fig.width = 8}
 ## Interval on the x axis and average steps taken on the y
-
 ggplot(data = myIntervalData, aes(x = as.numeric(as.character(myIntervalData$myinterval)), y = mean, group = 1)) + geom_line(na.rm = TRUE) +
         facet_grid(weekday ~.) + labs(x = "Interval", y = "Mean Steps per Day", title = "Mean Steps per Day by Interval and Weekday")
 
